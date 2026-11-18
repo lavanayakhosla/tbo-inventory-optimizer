@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TBO.com | SmartInventory Decision-Support Platform</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            tbo: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#0f172a'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20 font-bold text-white text-lg">
+          TBO
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-lg font-bold tracking-tight text-white">SmartInventory Optimizer</h1>
+            <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">Decision-Support</span>
+          </div>
+          <p class="text-xs text-slate-400">Autonomous Pre-Buy & Allocation Intelligence for B2B Travel</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <div class="hidden md:flex items-center space-x-2 text-xs bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-slate-300">SciPy HiGHS MILP Engine</span>
+          <span class="text-slate-500">|</span>
+          <span class="text-slate-400" id="live-inventory-count">180 Items Loaded</span>
+        </div>
+        <button id="export-rfp-btn" class="flex items-center space-x-2 px-3.5 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow-md transition-colors">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+          <span>Dispatch RFP / PO</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1">
+
+    <!-- Top Controls: Interactive Budget & Constraints Sandbox -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        
+        <!-- Budget Slider -->
+        <div class="flex-1 space-y-2">
+          <div class="flex justify-between items-center">
+            <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center space-x-1.5">
+              <i data-lucide="wallet" class="w-4 h-4 text-blue-400"></i>
+              <span>Total Procurement Budget</span>
+            </label>
+            <span id="budget-display" class="text-xl font-bold text-blue-400">₹ 5,00,00,000 (5.0 Cr)</span>
+          </div>
+          <input type="range" id="budget-slider" min="10000000" max="150000000" step="5000000" value="50000000"
+            class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500">
+          <div class="flex justify-between text-[10px] text-slate-500 font-medium">
+            <span>₹ 1.0 Cr (Min)</span>
+            <span>₹ 5.0 Cr (Standard)</span>
+            <span>₹ 10.0 Cr (Scale)</span>
+            <span>₹ 15.0 Cr (Aggressive)</span>
+          </div>
+        </div>
+
+        <!-- Risk Tolerance Selector -->
+        <div class="space-y-2">
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center space-x-1.5">
+            <i data-lucide="shield-alert" class="w-4 h-4 text-amber-400"></i>
+            <span>Risk Tolerance</span>
+          </label>
+          <div class="flex bg-slate-800/80 p-1 rounded-xl border border-slate-700/80 space-x-1" id="risk-selector">
+            <button data-risk="conservative" class="risk-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition-all">
+              Conservative
+            </button>
+            <button data-risk="balanced" class="risk-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white shadow-sm transition-all">
+              Balanced
+            </button>
+            <button data-risk="aggressive" class="risk-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition-all">
+              Aggressive
+            </button>
+          </div>
+        </div>
+
+        <!-- Category Mix Slider -->
+        <div class="w-full lg:w-60 space-y-2">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400 font-semibold uppercase">Category Mix</span>
+            <span id="category-mix-label" class="font-bold text-slate-200">65% Hotel / 35% Flight</span>
+          </div>
+          <input type="range" id="hotel-share-slider" min="20" max="90" step="5" value="65"
+            class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+          <div class="flex justify-between text-[10px] text-slate-500 font-medium">
+            <span>More Flights</span>
+            <span>More Hotels</span>
+          </div>
+        </div>
+
+        <!-- Optimize CTA -->
+        <div class="flex items-center">
+          <button id="reoptimize-btn" class="w-full lg:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm flex items-center justify-center space-x-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+            <span>Run Allocation</span>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Executive KPI Scorecard -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" id="kpi-scorecard">
+      
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+        <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Allocated Capital</div>
+        <div class="text-xl font-bold text-white mt-1" id="kpi-allocated">₹ --</div>
+        <div class="text-[11px] text-emerald-400 mt-1 flex items-center space-x-1" id="kpi-utilization">
+          <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+          <span>--% Utilization</span>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+        <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Expected Net Profit</div>
+        <div class="text-xl font-bold text-emerald-400 mt-1" id="kpi-profit">₹ --</div>
+        <div class="text-[11px] text-emerald-400/80 mt-1" id="kpi-roi">ROI: --%</div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+        <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Inventory Unlocked</div>
+        <div class="text-xl font-bold text-white mt-1" id="kpi-units">-- Units</div>
+        <div class="text-[11px] text-slate-400 mt-1">Bookable Rooms & Seats</div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+        <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Latent Demand Captured</div>
+        <div class="text-xl font-bold text-indigo-400 mt-1" id="kpi-latent">-- Searches</div>
+        <div class="text-[11px] text-indigo-300/80 mt-1">Recovered from Sold-Outs</div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+        <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Value at Risk (95% VaR)</div>
+        <div class="text-xl font-bold text-amber-400 mt-1" id="kpi-var">₹ --</div>
+        <div class="text-[11px] text-amber-300/80 mt-1">Max Perishability Buffer</div>
+      </div>
+
+    </div>
+
+    <!-- Charts & Intelligence Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- Portfolio Allocation Breakdown -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
+        <div class="flex justify-between items-center">
+          <h2 class="text-sm font-bold text-white flex items-center space-x-2">
+            <i data-lucide="pie-chart" class="w-4 h-4 text-blue-400"></i>
+            <span>Capital Allocation Mix</span>
+          </h2>
+          <span class="text-xs text-slate-400">Destination & Category</span>
+        </div>
+        <div class="h-64 relative flex items-center justify-center">
+          <canvas id="allocationChart"></canvas>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs text-slate-400 pt-2 border-t border-slate-800" id="allocation-legend">
+          <!-- Dynamically filled -->
+        </div>
+      </div>
+
+      <!-- Latent Demand & Sold-Out Rate by Corridor -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-4 lg:col-span-2">
+        <div class="flex justify-between items-center">
+          <div>
+            <h2 class="text-sm font-bold text-white flex items-center space-x-2">
+              <i data-lucide="trending-up" class="w-4 h-4 text-emerald-400"></i>
+              <span>Travel Corridor Demand & Unmet Searches</span>
+            </h2>
+            <p class="text-xs text-slate-400">Realized Bookings vs. Censored Unmet Demand from Stockouts</p>
+          </div>
+          <span class="text-xs font-semibold px-2 py-1 bg-slate-800 rounded-lg text-slate-300">Look-to-Book Analysis</span>
+        </div>
+        <div class="h-64">
+          <canvas id="demandChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- What-If Scenario Stress Testing -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-bold text-white flex items-center space-x-2">
+            <i data-lucide="activity" class="w-4 h-4 text-amber-400"></i>
+            <span>Scenario Stress-Testing Simulator ("What-If" Analysis)</span>
+          </h2>
+          <p class="text-xs text-slate-400">Stress portfolio returns against demand contractions, holiday peaks, and budget shocks</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-xs text-slate-400">Quick Test Shock:</span>
+          <button class="shock-btn px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-rose-400 rounded-lg border border-slate-700" data-shock="-25">-25% Slump</button>
+          <button class="shock-btn px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700" data-shock="0">Baseline</button>
+          <button class="shock-btn px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-lg border border-slate-700" data-shock="30">+30% Surge</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="scenario-cards-container">
+        <!-- Dynamically injected scenario cards -->
+      </div>
+    </section>
+
+    <!-- Actionable Procurement Recommendations Table -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-sm font-bold text-white flex items-center space-x-2">
+            <i data-lucide="layers" class="w-4 h-4 text-indigo-400"></i>
+            <span>Actionable Inventory Investment Matrix</span>
+          </h2>
+          <p class="text-xs text-slate-400">Ranked by risk-adjusted profitability. Click any row for AI Investment Rationale.</p>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <input type="text" id="table-search" placeholder="Search property, route, or city..."
+            class="bg-slate-800 border border-slate-700 text-slate-200 px-3 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 w-48">
+          
+          <select id="filter-destination" class="bg-slate-800 border border-slate-700 text-slate-200 px-2.5 py-1.5 rounded-lg focus:outline-none">
+            <option value="ALL">All Destinations</option>
+            <option value="DXB">Dubai (DXB)</option>
+            <option value="LHR">London (LHR)</option>
+            <option value="SIN">Singapore (SIN)</option>
+            <option value="BKK">Bangkok (BKK)</option>
+            <option value="DPS">Bali (DPS)</option>
+            <option value="GOI">Goa (GOI)</option>
+            <option value="CDG">Paris (CDG)</option>
+            <option value="HND">Tokyo (HND)</option>
+          </select>
+
+          <select id="filter-category" class="bg-slate-800 border border-slate-700 text-slate-200 px-2.5 py-1.5 rounded-lg focus:outline-none">
+            <option value="ALL">All Categories</option>
+            <option value="Hotel">Hotels Only</option>
+            <option value="Flight">Flights Only</option>
+          </select>
+
+          <select id="filter-action" class="bg-slate-800 border border-slate-700 text-slate-200 px-2.5 py-1.5 rounded-lg focus:outline-none">
+            <option value="ALL">All Statuses</option>
+            <option value="PRE_BUY">Recommended Pre-Buys</option>
+            <option value="SPOT_BUY_OR_PASS">Spot Market / Pass</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="overflow-x-auto custom-scrollbar border border-slate-800 rounded-xl">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-400 font-semibold border-b border-slate-700/80">
+            <tr>
+              <th class="py-3 px-4">Inventory Asset & Corridor</th>
+              <th class="py-3 px-3">Travel Window</th>
+              <th class="py-3 px-3 text-right">Pre-Buy Rate</th>
+              <th class="py-3 px-3 text-right">Spot Rate</th>
+              <th class="py-3 px-3 text-right">Sell Price</th>
+              <th class="py-3 px-3 text-center">Optimal Qty</th>
+              <th class="py-3 px-3 text-right">Total Investment</th>
+              <th class="py-3 px-3 text-right">Expected Profit</th>
+              <th class="py-3 px-3 text-center">ROI</th>
+              <th class="py-3 px-3">Strategy & Risk</th>
+              <th class="py-3 px-3 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="recommendations-tbody" class="divide-y divide-slate-800/60">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="flex items-center justify-between text-xs text-slate-500 pt-2">
+        <span id="table-row-count">Showing -- items</span>
+        <span>Click "View AI Rationale" for complete underwriting analysis</span>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- AI Investment Thesis Modal -->
+  <div id="thesis-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-start justify-between border-b border-slate-800 pb-3">
+        <div>
+          <span class="text-[10px] uppercase font-bold text-blue-400 tracking-wider">AI Investment Underwriting Rationale</span>
+          <h3 id="modal-asset-name" class="text-base font-bold text-white mt-0.5">Asset Name</h3>
+          <p id="modal-corridor" class="text-xs text-slate-400">Destination</p>
+        </div>
+        <button id="close-modal-btn" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Quick Metrics Grid -->
+      <div class="grid grid-cols-3 gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800/80 text-xs">
+        <div>
+          <div class="text-slate-500">Pre-Buy Discount</div>
+          <div class="text-emerald-400 font-bold text-sm" id="modal-discount">--%</div>
+        </div>
+        <div>
+          <div class="text-slate-500">Critical Ratio</div>
+          <div class="text-white font-bold text-sm" id="modal-critical-ratio">--</div>
+        </div>
+        <div>
+          <div class="text-slate-500">Cut-off Lead Time</div>
+          <div class="text-amber-400 font-bold text-sm" id="modal-lcd">-- Days (LCD)</div>
+        </div>
+      </div>
+
+      <!-- Thesis Text -->
+      <div id="modal-thesis-body" class="text-xs text-slate-300 leading-relaxed space-y-2 whitespace-pre-line bg-slate-800/40 p-4 rounded-xl border border-slate-800">
+        Loading thesis...
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button id="modal-ok-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold">
+          Acknowledge & Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RFP / PO Dispatch Modal -->
+  <div id="rfp-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-start justify-between border-b border-slate-800 pb-3">
+        <div>
+          <span class="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">TBO Procurement Dispatch Engine</span>
+          <h3 class="text-base font-bold text-white mt-0.5">Supplier Pre-Buy Purchase Orders</h3>
+          <p class="text-xs text-slate-400">Generated for approved high-conviction allocations ready for supplier contracting</p>
+        </div>
+        <button id="close-rfp-btn" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs flex justify-between items-center">
+        <div>
+          <span class="text-slate-400">RFP ID: </span>
+          <span class="font-mono text-blue-400 font-bold" id="rfp-id-display">--</span>
+        </div>
+        <div>
+          <span class="text-slate-400">Total Purchase Lines: </span>
+          <span class="text-white font-bold" id="rfp-lines-display">--</span>
+        </div>
+        <div>
+          <span class="text-slate-400">Total Commitment: </span>
+          <span class="text-emerald-400 font-bold" id="rfp-commitment-display">₹ --</span>
+        </div>
+      </div>
+
+      <!-- JSON Preview Container -->
+      <div class="max-h-64 overflow-y-auto custom-scrollbar bg-slate-950 p-3 rounded-xl border border-slate-800">
+        <pre class="text-[11px] font-mono text-slate-300" id="rfp-json-preview">Loading RFP preview...</pre>
+      </div>
+
+      <div class="flex justify-between items-center pt-2">
+        <button id="download-csv-btn" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold flex items-center space-x-1.5">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>
+          <span>Download Procurement CSV</span>
+        </button>
+        <button id="confirm-rfp-btn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5">
+          <i data-lucide="send" class="w-3.5 h-3.5"></i>
+          <span>Approve & Dispatch to Suppliers</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard Script -->
+  <script>
+    let currentAllocations = [];
+    let currentRfpData = null;
+    let allocationChart = null;
+    let demandChart = null;
+    let selectedRisk = "balanced";
+    let currentDemandShock = 0.0;
+
+    // Format currency in Indian Lakhs / Crores
+    function formatINR(val) {
+      if (val >= 10000000) {
+        return "₹ " + (val / 10000000).toFixed(2) + " Cr";
+      } else if (val >= 100000) {
+        return "₹ " + (val / 100000).toFixed(1) + " L";
+      } else {
+        return "₹ " + Number(val).toLocaleString("en-IN");
+      }
+    }
+
+    async function loadDashboardData() {
+      const budget = parseFloat(document.getElementById("budget-slider").value);
+      const hotelShare = parseFloat(document.getElementById("hotel-share-slider").value) / 100.0;
+
+      // Update text displays
+      document.getElementById("budget-display").innerText = formatINR(budget) + ` (${(budget/10000000).toFixed(1)} Cr)`;
+      document.getElementById("category-mix-label").innerText = `${Math.round(hotelShare*100)}% Hotel / ${Math.round((1-hotelShare)*100)}% Flight`;
+
+      try {
+        // Run Allocation API
+        const allocRes = await fetch("/api/optimizer/allocate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            max_budget_inr: budget,
+            risk_tolerance: selectedRisk,
+            hotel_budget_share: hotelShare,
+            demand_shock_pct: currentDemandShock
+          })
+        });
+        const allocData = await allocRes.json();
+        currentAllocations = allocData.allocations;
+
+        // Update KPIs
+        const pSummary = allocData.portfolio_summary;
+        document.getElementById("kpi-allocated").innerText = formatINR(pSummary.total_budget_allocated_inr);
+        document.getElementById("kpi-utilization").innerHTML = `<i data-lucide="check-circle" class="w-3.5 h-3.5"></i><span>${pSummary.budget_utilization_pct}% Utilization</span>`;
+        document.getElementById("kpi-profit").innerText = formatINR(pSummary.total_expected_profit_inr);
+        document.getElementById("kpi-roi").innerText = `Portfolio ROI: +${pSummary.expected_portfolio_roi_pct}%`;
+        document.getElementById("kpi-units").innerText = `${pSummary.total_units_unlocked.toLocaleString()} Units`;
+        document.getElementById("kpi-latent").innerText = `${pSummary.latent_demand_recovered_units.toLocaleString()} Units`;
+        document.getElementById("kpi-var").innerText = formatINR(pSummary.portfolio_value_at_risk_95_inr);
+
+        // Render Recommendations Table
+        renderTable();
+
+        // Update Charts
+        updateAllocationChart(pSummary);
+        
+        // Load Scenarios
+        loadScenarios(budget);
+
+        lucide.createIcons();
+      } catch (err) {
+        console.error("Allocation error:", err);
+      }
+    }
+
+    async function loadDemandTrends() {
+      try {
+        const res = await fetch("/api/demand/trends");
+        const trends = await res.json();
+        updateDemandChart(trends);
+      } catch (err) {
+        console.error("Demand trend error:", err);
+      }
+    }
+
+    async function loadScenarios(budget) {
+      try {
+        const res = await fetch("/api/optimizer/scenario", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ base_budget_inr: budget })
+        });
+        const data = await res.json();
+        renderScenarioCards(data.scenarios);
+      } catch (err) {
+        console.error("Scenario error:", err);
+      }
+    }
+
+    function renderScenarioCards(scenarios) {
+      const container = document.getElementById("scenario-cards-container");
+      container.innerHTML = "";
+
+      scenarios.forEach(sc => {
+        const isSelected = Math.abs(sc.demand_shock_pct - currentDemandShock) < 0.1;
+        const card = document.createElement("div");
+        card.className = `p-4 rounded-xl border transition-all cursor-pointer ${
+          isSelected 
+            ? "bg-blue-950/40 border-blue-500 shadow-md shadow-blue-500/10" 
+            : "bg-slate-950/70 border-slate-800 hover:border-slate-700"
+        }`;
+        
+        const shockBadgeColor = sc.demand_shock_pct < 0 ? "text-rose-400 bg-rose-500/10" : (sc.demand_shock_pct > 0 ? "text-emerald-400 bg-emerald-500/10" : "text-slate-400 bg-slate-800");
+
+        card.innerHTML = `
+          <div class="flex justify-between items-start">
+            <h4 class="text-xs font-bold text-white">${sc.name}</h4>
+            <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded ${shockBadgeColor}">${sc.demand_shock_pct > 0 ? '+' : ''}${sc.demand_shock_pct}%</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1 line-clamp-2">${sc.description}</p>
+          <div class="mt-3 pt-3 border-t border-slate-800/80 space-y-1 text-xs">
+            <div class="flex justify-between">
+              <span class="text-slate-500">Exp. Profit:</span>
+              <span class="font-bold text-emerald-400">${formatINR(sc.expected_profit_inr)}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Portfolio ROI:</span>
+              <span class="font-bold text-white">+${sc.expected_roi_pct}%</span>
+            </div>
+            <div class="flex justify-between text-[11px]">
+              <span class="text-slate-500">Rooms/Seats:</span>
+              <span class="text-slate-300 font-medium">${sc.total_units_unlocked}</span>
+            </div>
+          </div>
+        `;
+        card.onclick = () => {
+          currentDemandShock = sc.demand_shock_pct;
+          loadDashboardData();
+        };
+        container.appendChild(card);
+      });
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById("recommendations-tbody");
+      tbody.innerHTML = "";
+
+      const query = document.getElementById("table-search").value.toLowerCase();
+      const destFilter = document.getElementById("filter-destination").value;
+      const catFilter = document.getElementById("filter-category").value;
+      const actFilter = document.getElementById("filter-action").value;
+
+      const filtered = currentAllocations.filter(a => {
+        if (destFilter !== "ALL" && a.destination_code !== destFilter) return false;
+        if (catFilter !== "ALL" && a.category !== catFilter) return false;
+        if (actFilter !== "ALL" && a.recommended_action !== actFilter) return false;
+        if (query && !a.name.toLowerCase().includes(query) && !a.destination_city.toLowerCase().includes(query)) return false;
+        return true;
+      });
+
+      document.getElementById("table-row-count").innerText = `Showing ${filtered.length} of ${currentAllocations.length} inventory items`;
+
+      filtered.forEach(item => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-800/40 transition-colors cursor-pointer group";
+
+        const isPreBuy = item.recommended_action === "PRE_BUY";
+        const catBadge = item.category === "Hotel" 
+          ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Hotel</span>' 
+          : '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Flight</span>';
+
+        const strategyClass = item.strategy_badge.includes("STRONG") 
+          ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+          : (item.strategy_badge.includes("SECURE") ? "text-blue-400 bg-blue-500/10 border-blue-500/20" : "text-slate-400 bg-slate-800 border-slate-700");
+
+        tr.innerHTML = `
+          <td class="py-3 px-4">
+            <div class="flex items-center space-x-2">
+              ${catBadge}
+              <div>
+                <div class="font-bold text-white group-hover:text-blue-400 transition-colors">${item.name}</div>
+                <div class="text-[11px] text-slate-400 flex items-center space-x-1">
+                  <span>${item.destination_city} (${item.destination_code})</span>
+                  <span>•</span>
+                  <span>L2B: ${item.look_to_book_ratio}:1</span>
+                  <span>•</span>
+                  <span class="text-amber-400/90">${item.sold_out_rate_pct}% Sold-Out</span>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="py-3 px-3 text-slate-300 font-medium">${item.travel_period}</td>
+          <td class="py-3 px-3 text-right font-mono font-bold text-white">₹ ${item.prebuy_contract_price.toLocaleString("en-IN")}</td>
+          <td class="py-3 px-3 text-right font-mono text-slate-400 line-through">₹ ${item.spot_market_price.toLocaleString("en-IN")}</td>
+          <td class="py-3 px-3 text-right font-mono font-bold text-emerald-400">₹ ${item.recommended_sell_price.toLocaleString("en-IN")}</td>
+          <td class="py-3 px-3 text-center">
+            ${isPreBuy ? `<span class="px-2 py-0.5 rounded-md font-bold bg-blue-600/20 text-blue-300 border border-blue-500/30">${item.optimal_prebuy_quantity}</span>` : '<span class="text-slate-600">0</span>'}
+          </td>
+          <td class="py-3 px-3 text-right font-bold text-slate-200">${isPreBuy ? formatINR(item.investment_amount) : '—'}</td>
+          <td class="py-3 px-3 text-right font-bold ${isPreBuy ? 'text-emerald-400' : 'text-slate-500'}">${isPreBuy ? formatINR(item.expected_profit) : '—'}</td>
+          <td class="py-3 px-3 text-center font-bold ${isPreBuy ? 'text-emerald-400' : 'text-slate-600'}">${isPreBuy ? '+' + item.expected_roi_pct + '%' : '—'}</td>
+          <td class="py-3 px-3">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border ${strategyClass}">
+              ${item.strategy_badge}
+            </span>
+          </td>
+          <td class="py-3 px-3 text-center">
+            <button class="view-thesis-btn text-xs text-blue-400 hover:text-blue-300 font-semibold underline" data-id="${item.item_id}">
+              AI Rationale
+            </button>
+          </td>
+        `;
+
+        tr.querySelector(".view-thesis-btn").onclick = (e) => {
+          e.stopPropagation();
+          showThesisModal(item.item_id);
+        };
+        tr.onclick = () => showThesisModal(item.item_id);
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function showThesisModal(itemId) {
+      const modal = document.getElementById("thesis-modal");
+      modal.classList.remove("hidden");
+      document.getElementById("modal-thesis-body").innerText = "Generating AI underwriting thesis...";
+
+      try {
+        const res = await fetch(`/api/explain/${itemId}`);
+        const data = await res.json();
+
+        document.getElementById("modal-asset-name").innerText = data.name;
+        document.getElementById("modal-corridor").innerText = `${data.category} • ${data.destination}`;
+        document.getElementById("modal-discount").innerText = `${data.metrics.prebuy_discount_pct}% Off Spot`;
+        document.getElementById("modal-critical-ratio").innerText = data.metrics.critical_ratio;
+        document.getElementById("modal-lcd").innerText = `${data.metrics.lcd_days} Days (LCD)`;
+        document.getElementById("modal-thesis-body").innerHTML = data.thesis_markdown.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>');
+      } catch (err) {
+        document.getElementById("modal-thesis-body").innerText = "Error loading thesis: " + err;
+      }
+    }
+
+    async function showRfpModal() {
+      const modal = document.getElementById("rfp-modal");
+      modal.classList.remove("hidden");
+
+      const budget = parseFloat(document.getElementById("budget-slider").value);
+      const hotelShare = parseFloat(document.getElementById("hotel-share-slider").value) / 100.0;
+
+      try {
+        const res = await fetch("/api/procurement/rfp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            max_budget_inr: budget,
+            risk_tolerance: selectedRisk,
+            hotel_budget_share: hotelShare
+          })
+        });
+        currentRfpData = await res.json();
+
+        document.getElementById("rfp-id-display").innerText = currentRfpData.rfp_id;
+        document.getElementById("rfp-lines-display").innerText = currentRfpData.total_po_lines;
+        document.getElementById("rfp-commitment-display").innerText = formatINR(currentRfpData.total_budget_committed_inr);
+        document.getElementById("rfp-json-preview").innerText = JSON.stringify(currentRfpData.purchase_orders.slice(0, 10), null, 2) + "\n... (more orders included)";
+      } catch (err) {
+        console.error("RFP generation error:", err);
+      }
+    }
+
+    function downloadCSV() {
+      if (!currentRfpData || !currentRfpData.purchase_orders) return;
+      const orders = currentRfpData.purchase_orders;
+      let csv = "PO Line,Asset Name,Category,Destination,Travel Window,Units Prebought,Buy Rate INR,Total Commitment INR,Cutoff LCD Days\n";
+      orders.forEach(o => {
+        csv += `"${o.po_line_number}","${o.supplier_asset}","${o.category}","${o.destination}","${o.travel_window}","${o.contracted_quantity}","${o.target_procurement_rate_inr}","${o.total_line_commitment_inr}","${o.cancellation_cut_off_days}"\n`;
+      });
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.setAttribute("href", url);
+      a.setAttribute("download", `${currentRfpData.rfp_id}.csv`);
+      a.click();
+    }
+
+    function updateAllocationChart(pSummary) {
+      const destBreakdown = pSummary.destination_breakdown || {};
+      const labels = Object.keys(destBreakdown);
+      const data = Object.values(destBreakdown).map(v => v.investment_inr);
+
+      const colors = ['#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#10b981', '#f59e0b', '#06b6d4'];
+
+      if (allocationChart) {
+        allocationChart.destroy();
+      }
+
+      const ctx = document.getElementById("allocationChart").getContext("2d");
+      allocationChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: colors.slice(0, labels.length),
+            borderColor: '#0f172a',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          cutout: '72%'
+        }
+      });
+
+      const legend = document.getElementById("allocation-legend");
+      legend.innerHTML = "";
+      labels.forEach((l, idx) => {
+        const share = destBreakdown[l].share_pct;
+        const item = document.createElement("div");
+        item.className = "flex items-center space-x-1.5";
+        item.innerHTML = `
+          <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${colors[idx % colors.length]}"></span>
+          <span class="text-slate-300 font-medium">${l}</span>
+          <span class="text-slate-500">(${share}%)</span>
+        `;
+        legend.appendChild(item);
+      });
+    }
+
+    function updateDemandChart(trends) {
+      if (demandChart) demandChart.destroy();
+
+      const labels = trends.map(t => `${t.city} (${t.code})`);
+      const realized = trends.map(t => t.realized_bookings);
+      const unmet = trends.map(t => t.unmet_latent_demand);
+
+      const ctx = document.getElementById("demandChart").getContext("2d");
+      demandChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Realized Bookings',
+              data: realized,
+              backgroundColor: '#3b82f6',
+              borderRadius: 4
+            },
+            {
+              label: 'Censored Unmet Demand (Sold-Outs)',
+              data: unmet,
+              backgroundColor: '#f59e0b',
+              borderRadius: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#94a3b8', font: { size: 10 } }
+            },
+            y: {
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#94a3b8', font: { size: 10 } }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: { color: '#cbd5e1', font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
+    // Event listeners
+    document.getElementById("budget-slider").addEventListener("input", () => {
+      const budget = parseFloat(document.getElementById("budget-slider").value);
+      document.getElementById("budget-display").innerText = formatINR(budget) + ` (${(budget/10000000).toFixed(1)} Cr)`;
+    });
+    document.getElementById("budget-slider").addEventListener("change", loadDashboardData);
+
+    document.getElementById("hotel-share-slider").addEventListener("input", () => {
+      const hotelShare = parseFloat(document.getElementById("hotel-share-slider").value);
+      document.getElementById("category-mix-label").innerText = `${hotelShare}% Hotel / ${100 - hotelShare}% Flight`;
+    });
+    document.getElementById("hotel-share-slider").addEventListener("change", loadDashboardData);
+
+    document.querySelectorAll(".risk-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".risk-btn").forEach(b => {
+          b.className = "risk-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition-all";
+        });
+        btn.className = "risk-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white shadow-sm transition-all";
+        selectedRisk = btn.getAttribute("data-risk");
+        loadDashboardData();
+      });
+    });
+
+    document.querySelectorAll(".shock-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        currentDemandShock = parseFloat(btn.getAttribute("data-shock"));
+        loadDashboardData();
+      });
+    });
+
+    document.getElementById("reoptimize-btn").addEventListener("click", loadDashboardData);
+
+    // Table filters
+    ["table-search", "filter-destination", "filter-category", "filter-action"].forEach(id => {
+      document.getElementById(id).addEventListener("input", renderTable);
+      document.getElementById(id).addEventListener("change", renderTable);
+    });
+
+    // Modals
+    document.getElementById("close-modal-btn").onclick = () => document.getElementById("thesis-modal").classList.add("hidden");
+    document.getElementById("modal-ok-btn").onclick = () => document.getElementById("thesis-modal").classList.add("hidden");
+
+    document.getElementById("export-rfp-btn").onclick = showRfpModal;
+    document.getElementById("close-rfp-btn").onclick = () => document.getElementById("rfp-modal").classList.add("hidden");
+    document.getElementById("download-csv-btn").onclick = downloadCSV;
+    document.getElementById("confirm-rfp-btn").onclick = () => {
+      alert("✅ RFP orders successfully dispatched to TBO Global Procurement Queue!");
+      document.getElementById("rfp-modal").classList.add("hidden");
+    };
+
+    // Initial Load
+    window.addEventListener("DOMContentLoaded", () => {
+      loadDashboardData();
+      loadDemandTrends();
+    });
+  </script>
+</body>
+</html>
