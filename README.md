@@ -58,7 +58,8 @@ $$\max_{q_1, \dots, q_n \in \mathbb{Z}^+} \sum_{i=1}^{n} \left[ \mathbb{E}[\text
 **Subject to:**
 1. **Total Budget Constraint**: $\sum_{i=1}^{n} C_i^{\text{prebuy}} \cdot q_i \le B_{\max}$
 2. **Category Allocation**: $\sum_{i \in \text{Hotel}} C_i \cdot q_i \le B_{\max} \cdot w_{\text{hotel}}$, $\sum_{i \in \text{Flight}} C_i \cdot q_i \le B_{\max} \cdot (1 - w_{\text{hotel}})$
-3. **Corridor Concentration Cap**: $\sum_{i \in \text{Dest}_d} C_i \cdot q_i \le B_{\max} \cdot \kappa_{\text{dest}}$ (prevents over-exposure to a single market)
+3. **Corridor Concentration Cap**: $\sum_{i \in \text{Dest}\_d} C_i \cdot q_i \le B\_{\max} \cdot \kappa\_{\text{dest}}$ (prevents over-exposure to a single market)
+
 4. **Contractual Block Bounds**: $q_i \in \{0\} \cup [M_i^{\min}, \min(A_i^{\max}, Q_i^*)]$
 
 Solved in real time using the **SciPy HiGHS Mixed-Integer Linear Programming Solver**.
